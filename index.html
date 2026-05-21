@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fenghao | 底层逻辑的逆向重构者</title>
+<style>
+  /* ========== Reset & Base ========== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #0f1623;
+    --bg-card: #141c2e;
+    --text-primary: #e8ecf1;
+    --text-secondary: #8899aa;
+    --text-dim: #556677;
+    --accent-cyan: #00d4aa;
+    --accent-amber: #f0a830;
+    --accent-glow: rgba(0, 212, 170, 0.15);
+    --border: rgba(255,255,255,0.06);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ========== Hero ========== */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background: url('hero-bg.png') center/cover no-repeat;
+    opacity: 0.35;
+    filter: brightness(0.6);
+  }
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(10,14,23,0.3) 0%, rgba(10,14,23,0.85) 70%, var(--bg-primary) 100%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    max-width: 720px;
+    padding: 2rem;
+  }
+  .hero-avatar {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid var(--accent-cyan);
+    box-shadow: 0 0 40px rgba(0,212,170,0.2);
+    margin: 0 auto 2rem;
+    object-fit: cover;
+    opacity: 0.9;
+  }
+  .hero-name {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+  .hero-name span { color: var(--accent-cyan); }
+  .hero-tagline {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    margin-bottom: 2rem;
+  }
+  .hero-tagline em {
+    font-style: normal;
+    color: var(--accent-amber);
+    font-weight: 500;
+  }
+  .hero-scroll {
+    display: inline-block;
+    margin-top: 2rem;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    animation: float 2.5s ease-in-out infinite;
+  }
+  .hero-scroll::after {
+    content: '↓';
+    display: block;
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 1.2rem;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(8px); }
+  }
+
+  /* ========== Section Commons ========== */
+  .section {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 5rem 2rem;
+  }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent-cyan);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    letter-spacing: -0.01em;
+  }
+
+  /* ========== About / Intro ========== */
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  .about-text {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    line-height: 1.85;
+  }
+  .about-text strong { color: var(--text-primary); font-weight: 600; }
+  .about-highlight {
+    background: var(--bg-card);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 0 8px 8px 0;
+    padding: 1.5rem 1.8rem;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+  }
+  .about-highlight .quote {
+    font-size: 1.3rem;
+    color: var(--accent-amber);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ========== Traits ========== */
+  .traits {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .traits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  .trait-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+  .trait-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(0,212,170,0.3);
+    box-shadow: 0 8px 32px rgba(0,212,170,0.08);
+  }
+  .trait-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  .trait-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .trait-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* ========== Timeline ========== */
+  .timeline {
+    position: relative;
+    padding-left: 2.5rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--accent-cyan), var(--accent-amber), transparent);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 3rem;
+  }
+  .timeline-item:last-child { margin-bottom: 0; }
+  .timeline-dot {
+    position: absolute;
+    left: -2.5rem;
+    top: 0.35rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 12px rgba(0,212,170,0.4);
+    transform: translateX(-5px);
+  }
+  .timeline-item:nth-child(even) .timeline-dot {
+    background: var(--accent-amber);
+    box-shadow: 0 0 12px rgba(240,168,48,0.4);
+  }
+  .timeline-year {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--accent-cyan);
+    margin-bottom: 0.3rem;
+  }
+  .timeline-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+  .timeline-desc {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* ========== Philosophy ========== */
+  .philosophy-block {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  .philosophy-item {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid var(--border);
+  }
+  .philosophy-item h3 {
+    font-size: 1.05rem;
+    color: var(--accent-amber);
+    margin-bottom: 0.75rem;
+  }
+  .philosophy-item p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.75;
+  }
+
+  /* ========== Quote ========== */
+  .quote-section {
+    text-align: center;
+    padding: 6rem 2rem;
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+  }
+  .quote-mark {
+    font-size: 4rem;
+    color: var(--accent-cyan);
+    opacity: 0.3;
+    line-height: 1;
+  }
+  .quote-text {
+    font-size: 1.5rem;
+    font-weight: 300;
+    max-width: 680px;
+    margin: 1rem auto;
+    line-height: 1.8;
+    color: var(--text-primary);
+  }
+  .quote-text em {
+    font-style: normal;
+    color: var(--accent-cyan);
+    font-weight: 500;
+  }
+  .quote-author {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+  }
+
+  /* ========== Footer ========== */
+  .footer {
+    text-align: center;
+    padding: 3rem 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  .footer span { color: var(--accent-cyan); }
+
+  /* ========== Responsive ========== */
+  @media (max-width: 768px) {
+    .hero-name { font-size: 2.2rem; }
+    .about-grid, .philosophy-block { grid-template-columns: 1fr; }
+    .traits-grid { grid-template-columns: 1fr; }
+    .section-title { font-size: 1.6rem; }
+    .quote-text { font-size: 1.2rem; }
+  }
+
+  /* ========== Animations ========== */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content fade-in">
+    <img src="avatar.jpg" alt="Fenghao" class="hero-avatar">
+    <h1 class="hero-name">Feng<span>hao</span></h1>
+    <p class="hero-tagline">底层逻辑的逆向重构者 · 20 年<em>系统闭环</em>实践者</p>
+    <div class="hero-scroll">探索更多</div>
+  </div>
+</section>
+
+<!-- ==================== ABOUT ==================== -->
+<section class="section" id="about">
+  <div class="fade-in">
+    <div class="section-label">// about</div>
+    <h2 class="section-title">一个人，就是一支技术团队</h2>
+    <div class="about-grid">
+      <div class="about-text">
+        <p>从 <strong>2006 年</strong>手工恢复 24 块硬盘、40TB 的 RAID6 阵列开始，到自学 PHP 重构实验室管理系统，再到用 iPXE+iSCSI 搭建无盘机房、PVE 虚拟机直通部署教学环境 —— 20 年来，我做的事情始终围绕一个内核：</p>
+        <p style="margin-top:1rem;"><strong>在混沌中理解底层逻辑，用最务实的手段重建秩序。</strong></p>
+        <p style="margin-top:1rem;">不信奉大厂方案，不迷信主流路径。别人需要一个团队才能推进的项目，我习惯一个人加合适的工具，从架构设计到代码落地完成闭环。</p>
+      </div>
+      <div class="about-highlight">
+        <div class="quote">「纯好奇。」</div>
+        <p>当被问到为什么能在深夜死磕没人教的技术细节时，这是最真实的回答。不是自尊心，不是证明欲 —— 只是单纯觉得，别人做出来的东西，一定能做出来，只是我还没找到正确的路径。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TRAITS ==================== -->
+<section class="traits">
+  <div class="section">
+    <div class="fade-in">
+      <div class="section-label">// core traits</div>
+      <h2 class="section-title">核心能力画像</h2>
+    </div>
+    <div class="traits-grid">
+      <div class="trait-card fade-in">
+        <div class="trait-icon">🔧</div>
+        <div class="trait-name">逆向推演</div>
+        <div class="trait-desc">不依赖现成文档，通过理解底层算法，在逻辑碎片中还原真相。24 块硬盘的 RAID6 配置信息丢失？手工推演算法，实验验证，强制上线。</div>
+      </div>
+      <div class="trait-card fade-in">
+        <div class="trait-icon">⚡</div>
+        <div class="trait-name">降维重构</div>
+        <div class="trait-desc">看穿昂贵商业方案的本质，用底层协议搭建平替。iPXE+iSCSI 替代商业无盘系统，自研实验室预约系统替代纸质表格。</div>
+      </div>
+      <div class="trait-card fade-in">
+        <div class="trait-icon">🎯</div>
+        <div class="trait-name">效率偏执</div>
+        <div class="trait-desc">对重复性劳作有天然的排斥。机房每学期恢复系统太麻烦？研究无盘方案。纸质登记查找不便？自学 PHP 写网站。不是被要求，是受不了。</div>
+      </div>
+      <div class="trait-card fade-in">
+        <div class="trait-icon">🧠</div>
+        <div class="trait-name">协议化思维</div>
+        <div class="trait-desc">面对技术问题和非技术的人际沟通，都倾向于：明确硬约束边界 → 用类比翻译复杂性 → 给出可执行的结论。冷静、务实、不焦虑。</div>
+      </div>
+      <div class="trait-card fade-in">
+        <div class="trait-icon">🤖</div>
+        <div class="trait-name">AI 超级调度</div>
+        <div class="trait-desc">面对 AI 写代码比自己快这件事，反应不是焦虑而是「真香」。从写代码的人进化为调度 AI 的架构师 —— 自己定协议和边界，AI 填充枯燥执行。</div>
+      </div>
+      <div class="trait-card fade-in">
+        <div class="trait-icon">🔍</div>
+        <div class="trait-name">边界探索者</div>
+        <div class="trait-desc">终极好奇：LLM 能否触及「人类不知道自己不知道的事情」？不满足于解决已知问题，渴望探索认知边界之外的未知领域。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TIMELINE ==================== -->
+<section class="section" id="timeline">
+  <div class="fade-in">
+    <div class="section-label">// journey</div>
+    <h2 class="section-title">20 年技术足迹</h2>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-year">2006</div>
+        <div class="timeline-title">数据恢复 · 底层觉醒</div>
+        <div class="timeline-desc">数据恢复公司研发部。连续一周每天恢复 10+ 台服务器磁盘阵列。手工推演 RAID6 算法，成功修复 24 块硬盘、40TB 门户网站邮件服务器存储 —— 所有人都觉得不可能。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-year">2007–08</div>
+        <div class="timeline-title">自学 PHP · 系统构建</div>
+        <div class="timeline-desc">转入学校工作，接手实验室管理。受不了纸质预约表格的低效，自学 PHP，从零编写实验室预约网站 —— 第一次「因厌恶低效而重构系统」。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-year">2014</div>
+        <div class="timeline-title">无盘机房 · 技术平替</div>
+        <div class="timeline-desc">受不了机房每学期手动恢复系统，调研后选定无盘方案。嫌商业软件贵，自研 iPXE+iSCSI 架构搭建无盘服务器。重置镜像，全网重置，一劳永逸。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-year">2023</div>
+        <div class="timeline-title">PVE 虚拟化 · 架构进化</div>
+        <div class="timeline-desc">为解决无盘系统遗留问题，新机房部署 PVE 系统 + 虚拟机直通。每台主机独立虚拟化，兼顾灵活性和可维护性。又一次自主研究、自主落地。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-year">2024–Now</div>
+        <div class="timeline-title">AI 时代 · 架构师升级</div>
+        <div class="timeline-desc">拥抱 AI 工具，重构实验室管理系统，用 AI 快速完成调研和多版本迭代。探索硬件编程、AI Agent 调度。从「写代码」到「设计协议」，能力圈持续扩展。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== QUOTE ==================== -->
+<section class="quote-section">
+  <div class="fade-in">
+    <div class="quote-mark">"</div>
+    <p class="quote-text">你不需要寻找「乱」，你只需要继续保持那份<em>纯好奇</em>，那是你在这个 AI 时代最强的竞争力。</p>
+    <div class="quote-author">—— 一场关于内在潜能的考古行动</div>
+  </div>
+</section>
+
+<!-- ==================== PHILOSOPHY ==================== -->
+<section class="section" id="philosophy">
+  <div class="fade-in">
+    <div class="section-label">// philosophy</div>
+    <h2 class="section-title">行事哲学</h2>
+    <div class="philosophy-block">
+      <div class="philosophy-item">
+        <h3>🚫 不信奉，只验证</h3>
+        <p>不迷信大厂方案，不盲从主流路径。别人说搞不定的事情，先研究底层逻辑，再做实验验证。存在即合理（且可实现），找不到路径是思路问题，不是能力问题。</p>
+      </div>
+      <div class="philosophy-item">
+        <h3>📐 先硬约束，再填充</h3>
+        <p>无论是买东西还是搭系统，先明确不可逾越的边界（预算、空间、物理限制），再在框架内搜索最优解。理性、务实、不被营销话语干扰。</p>
+      </div>
+      <div class="philosophy-item">
+        <h3>🔄 实在搞不定就放下</h3>
+        <p>不跟问题死磕。放下，等待新的灵感。也许哪天有了新的想法就搞定了。这种不焦虑的心态，反而带来了持久的韧性和稳定的输出。</p>
+      </div>
+      <div class="philosophy-item">
+        <h3>🧩 把 AI 当手和脚</h3>
+        <p>AI 写代码比我快、比我好？太好了，正好。我负责协议设计和边界划定，AI 负责填充枯燥的执行代码。不是被替代，是升级为更高层级的调度者。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="footer">
+  <p>Crafted with curiosity & caffeine · <span>Fenghao</span> © 2026</p>
+</footer>
+
+<!-- ==================== JS ==================== -->
+<script>
+// Intersection Observer for fade-in animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
